@@ -72,6 +72,7 @@ app.use(cors({
   origin: '*', // React app running on this origin
   credentials: true, // This is necessary for setting cookies cross-origin
   methods: ["GET", "POST", "OPTIONS","PUT"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"] // specify headers you want to allow
 }));
 
 
