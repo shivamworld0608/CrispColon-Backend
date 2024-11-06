@@ -69,8 +69,9 @@ cloudinary.config({
 
 const cors = require('cors');
 app.use(cors({
-  origin: 'http://localhost:5173', // React app running on this origin
+  origin: '*', // React app running on this origin
   credentials: true, // This is necessary for setting cookies cross-origin
+  methods: ["GET", "POST", "OPTIONS","PUT"],
 }));
 
 
