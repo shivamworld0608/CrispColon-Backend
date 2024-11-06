@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const User = require('./models/User')
 const app = express();
 
-
+ 
 //protecting route
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken')
