@@ -17,6 +17,7 @@ app.use(express.json()); // For parsing application/json
 const authenticate = (req, res, next) => {
     
     const token = req.cookies.token; // Assuming the cookie name is 'token'
+    console.log("Cookies:", req.cookies);
     console.log(token);
     if (!token) {
         return res.status(401).send('Unauthorized');
