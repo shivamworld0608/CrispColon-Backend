@@ -154,6 +154,7 @@ exports.verifyOTP = async (req, res) => {
       // Set token in cookie
       res.cookie('token', token, {
         httpOnly: true,
+        sameSite: 'none',
         secure: process.env.NODE_ENV === 'production',
         maxAge: 24 * 60 * 60 * 1000, // 1 day
       });
