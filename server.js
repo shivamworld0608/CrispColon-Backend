@@ -9,6 +9,15 @@ const app = express();
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken')
 
+
+const cors = require('cors');
+app.use(cors({
+  origin: 'https://crisp-colon-frontend.vercel.app', // React app running on this origin
+  credentials: true, // This is necessary for setting cookies cross-origin
+}));
+
+
+
 app.use(cookieParser());
 app.use(express.json()); // For parsing application/json
 
@@ -64,18 +73,6 @@ cloudinary.config({
   api_key:process.env.API_KEY,
   api_secret:process.env.API_SECRET
 });
-
-
-
-
-const cors = require('cors');
-app.use(cors({
-  origin: 'https://crisp-colon-frontend.vercel.app', // React app running on this origin
-  credentials: true, // This is necessary for setting cookies cross-origin
-  methods: ["GET", "POST", "OPTIONS","PUT"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"] // specify headers you want to allow
-}));
-
 
 
 //to check uploading x-ray
