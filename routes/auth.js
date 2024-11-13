@@ -1,11 +1,9 @@
-const express = require('express');
-const { signup, verifyOTP } = require('../controller/auth');
-const User = require('../models/User');
+import express from 'express';
 const router = express.Router();
-
-
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { signup, verifyOTP, logout } from '../controller/auth.js';
+import User from '../models/User.js';
 
 // Signup route
 router.post('/signup', signup);
@@ -13,12 +11,12 @@ router.post('/signup', signup);
 // OTP verification route
 router.post('/verify-otp', verifyOTP);
 
+router.post('/logout',logout);
+
 
 
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  console.log("inside login");
-
   try {
     // Check if user exists
     const user = await User.findOne({ email });
@@ -30,12 +28,23 @@ router.post("/login", async (req, res) => {
 
     // Generate JWT
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-    res.cookie('token', token, { secure: true, sameSite: 'None' });
-    res.json({ success: true, token });
+    
+    if (!token) {
+      return res.status(500).json({ message: "Failed to generate token" });
+  }
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      secure: process.env.NODE_ENV === "production",
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  });
+
+    res.json({ success: true, token, user });
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server error");
   }
 });
 
-module.exports = router;
+export default router;

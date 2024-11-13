@@ -1,53 +1,61 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const User = require('./models/User')
+import express from 'express';
+import mongoose from 'mongoose';
+import cookieParser from 'cookie-parser';
+import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import cors from 'cors';
+import multer from 'multer';
+import axios from 'axios';
+import fs from 'fs';
+
+
+
+import User from './models/User.js';
+import authRoutes from './routes/auth.js';
+import profileRoutes from './routes/profile.js';
+
+
+dotenv.config();
 const app = express();
 
- 
-//protecting route
-const cookieParser = require('cookie-parser');
-const jwt = require('jsonwebtoken')
+app.use(cookieParser());
+app.use(express.json());
 
 
-const cors = require('cors');
 app.use(cors({
-  origin: 'https://crisp-colon-frontend.vercel.app', // React app running on this origin
-  credentials: true, // This is necessary for setting cookies cross-origin
+  origin: process.env.CLIENT_URL, 
+  credentials: true,
 }));
 
 
 
-app.use(cookieParser());
-app.use(express.json()); // For parsing application/json
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => {
+  console.log('Connected to MongoDB');
+}).catch((error) => {
+  console.error('MongoDB connection error:', error);
+});
 
 
-// Middleware to verify JWT
 const authenticate = (req, res, next) => {
     
-    const token = req.cookies.token; // Assuming the cookie name is 'token'
-    console.log("Cookies:", req.cookies);
-    console.log(token);
+    const token = req.cookies?.token;
     if (!token) {
-        return res.status(401).send('Unauthorized');
+        return res.status(401).send('Unauthorized (No token)');
     }
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).send('Forbidden');
-        }
-        req.user = user; // Attach user info to the request
-        console.log(" inside middleware: ",req.user);
-        next();
-    });
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+      next();
+    }
+    catch (err) {
+      return res.status(401).json({ message: 'Invalid or Expired token' });
+
+    }
 };
-
-
-
-//for x-ray
-const multer = require('multer');
-const axios = require("axios");
-const fs = require("fs");
-
 
 
 //x-ray handling multer configuration
@@ -67,7 +75,7 @@ const upload = multer({ storage: storage });
 
 
 //configuring cloudinary
-const cloudinary=require("cloudinary").v2
+import { v2 as cloudinary } from 'cloudinary';
 cloudinary.config({ 
   cloud_name: process.env.CLOUD_NAME,
   api_key:process.env.API_KEY,
@@ -121,11 +129,6 @@ app.post("/api/upload",authenticate, upload.single("file"), async (req, res) => 
 });
 
 
-// Middleware
-app.use(express.json());
-app.use(cookieParser());
-
-
 //making function to handle profile photo as middleware
 const handleProfilePhoto = async (req, res) => {
   const profilePic = req.file.path;
@@ -146,18 +149,16 @@ const handleProfilePhoto = async (req, res) => {
       user.profilePic = x.secure_url;
       await user.save();
     }
-    res.json({ success: true, profilePic: x.secure_url });
+    res.json({ success: true, profilePic: x.secure_url, user });
   } catch (error) {
     console.error("Error updating profile photo:", error);
     res.status(500).json({ success: false, error: "Profile Updation failed" });
   }
 };
 
-
-// Routes import
-const authRoutes = require('./routes/auth');
-const profileRoutes = require('./routes/profile');
-
+app.get('/check-auth', authenticate, (req, res) => {
+  res.status(200).json({ message: 'Authenticated', user: req.user });
+});
 
 // Routes
 app.use('/api', authRoutes);
@@ -165,15 +166,6 @@ app.put('/profile/update-picture',authenticate, upload.single("file"),handleProf
 app.use('/profile',authenticate,profileRoutes);
 
 
-// MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
-  console.log('Connected to MongoDB');
-}).catch((error) => {
-  console.error('MongoDB connection error:', error);
-});
 
 // Start the server
 const PORT = process.env.PORT || 5000;

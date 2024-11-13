@@ -1,16 +1,13 @@
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
 
 // Configure Nodemailer
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false
+    user: "crispcolon.team@gmail.com",
+    pass: "uyfcfkmjgycormrw"
   },
   timeout: 10000
 });
@@ -20,27 +17,19 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000); // 6 digit OTP
 };
 
-// Signup Controller
-exports.signup = async (req, res) => {
+export const signup = async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
 
-     console.log("signup insider");
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
-     console.log("checked for if user exist");
+
     if (existingUser) {
-      console.log("user is existing");
       return res.status(400).json({ message: 'User already exists' });
     }
-    console.log("no user is existing");
 
-    // Generate OTP and its expiry (5 minutes)
     const otp = generateOTP();
     const otpExpires = Date.now() + 5 * 60 * 1000; // 5 mins
 
-
-    // Create new user but set isVerified to false initially
     const newUser = new User({
       name,
       email,
@@ -52,17 +41,11 @@ exports.signup = async (req, res) => {
 
     // Save the user (without verification)
     await newUser.save();
-    console.log("user saved");
-    // Send OTP via email
-/*     const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Your OTP for Signup',
-      text: `Your OTP is ${otp}. It is valid for 5 minutes.`,
-    };
- */
+    console.log("Email: ",process.env.EMAIL_USER);
+    console.log("Password: ",process.env.EMAIL_PASS);
+
     const mailOptions = {
-      from: process.env.EMAIL_USER, // Update this to your CrispColon email address
+      from: process.env.EMAIL_USER,
       to: email,
       subject: 'Your OTP for Signup',
       html: `
@@ -91,21 +74,10 @@ exports.signup = async (req, res) => {
         </html>
       `,
     };
-    
 
-
-
-
-
-
-
-
-
-
-    console.log("just to send mail");
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
-        console.log('Error sending OTP:', error);
+        console.log('Error sending OTP:', error.message);
         return res.status(500).json({ message: 'Error sending OTP' });
       } else {
         console.log('OTP sent:', info.response);
@@ -120,52 +92,42 @@ exports.signup = async (req, res) => {
 };
 
 // Verify OTP
-exports.verifyOTP = async (req, res) => {
+export const verifyOTP = async (req, res) => {
   try {
     const { UserId, otp } = req.body;
-    console.log("incoming otp:",otp);
-    console.log("inside otp function");
-    // Find user by ID
     const user = await User.findById(UserId);
-    //user otp console
-    console.log("user info:",user);
-    console.log("user otp:", user.otp);
-    console.log("user mail:",user.email);
-    console.log("just checked the user");
+
     if (!user) {
-        console.log("user not found");
       return res.status(400).json({ message: 'User not found' });
     }
-    console.log("user found");
-    // Check if OTP matches and is not expired
     if (user.otp === otp && user.otpExpires > Date.now()) {
-      console.log("otp matched");
-      // OTP is correct, verify the user
       user.isVerified = true;
       user.otp = undefined;
       user.otpExpires = undefined;
       await user.save();
 
-      // Create JWT token
       const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-        expiresIn: '1d',
+        expiresIn: '30d',
       });
        
-      // Set token in cookie
-      res.cookie('token', token, {
+      res.cookie("token", token, {
         httpOnly: true,
-        sameSite: 'none',
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
-      });
+        sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+        secure: process.env.NODE_ENV === "production",
+        expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
 
-      return res.status(200).json({ message: 'OTP verified, signup complete', token });
+      return res.status(200).json({ message: 'OTP verified, signup complete', user });
+
     } else {
-      console.log("otp not matched");
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
   } catch (error) {
-    console.error('Error verifying OTP:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+export const logout = (req, res) => {
+  res.cookie('token', '', { httpOnly: true, expires: new Date(0), path: '/' });
+  res.status(200).json({ message: 'Logged out successfully' });
+}
